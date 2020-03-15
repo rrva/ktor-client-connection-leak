@@ -2,7 +2,7 @@ package se.rrva
 
 import com.sun.net.httpserver.HttpServer
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
+import io.ktor.client.engine.apache.Apache
 import io.ktor.client.features.json.JsonFeature
 import io.ktor.client.features.json.serializer.KotlinxSerializer
 import io.ktor.client.request.header
@@ -19,12 +19,15 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonConfiguration
 import java.io.PrintWriter
 import java.net.InetSocketAddress
+import java.net.SocketTimeoutException
+import java.util.concurrent.TimeoutException
 
 class Client(val fooServiceUrl: String) {
 
-    val client = HttpClient(CIO) {
+    val client = HttpClient(Apache) {
         engine {
-            endpoint.connectTimeout = 2
+            connectTimeout = 1
+            connectionRequestTimeout = 1
         }
         install(JsonFeature) {
             serializer = KotlinxSerializer(
@@ -75,8 +78,12 @@ fun main() {
             async(Dispatchers.Default) {
                 try {
                     client.fetchFoo(listOf(it.toString()))
-                } catch (e: ConnectTimeoutException) {
-                    // println("Connect timeout")
+                } catch (e: SocketTimeoutException) {
+                    println("Connect timeout")
+                    1
+                }
+                catch (e: TimeoutException) {
+                    println("Connect lease timeout")
                 }
             }
         }
